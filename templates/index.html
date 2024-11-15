@@ -1,0 +1,234 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mqtt</title>
+  <style>
+
+
+    *{
+      border: 1px dotted black;
+      color: white;
+      font-family: Verdana, Geneva, Tahoma, sans-serif;
+    }
+    body{
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      background-color: black;
+    }
+
+    #homeAutomation {
+      font-size: 50px;
+      text-decoration: underline;
+      text-align: center;
+      text-decoration-color: red;
+      position: relative;
+    }
+
+    .bodyContainer {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 3em 0;
+      font-family: Arial, sans-serif;
+    }
+    .button-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 20px;
+      min-width: 200px;
+      width: 600px;
+      max-width: 100vw;
+    }
+    .button {
+      padding: 15px 30px;
+      font-size: 16px;
+      font-weight: bold;
+      background-color: gray;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      width: 100%;
+      max-width: 200px;
+      text-align: center;
+    }
+    .onState {
+      background-color: red;
+    }
+    .offState {
+      background-color: gray;
+    }
+    @media (max-width: 600px) {
+      .button {
+        font-size: 14px;
+        padding: 10px 20px;
+      }
+    }
+    .micContainer {
+      width: 100vw;
+      height: 100px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .micImg {
+      width: 50px;
+      background-color: transparent;
+    }
+    button {
+      border: 0px;
+      cursor: pointer;
+      border-radius: 5px;
+      background-color: black;
+    }
+    #output {
+      padding: 10px;
+      width: 100%;
+      margin-top: 20px;
+      line-height: 30px;
+      text-align: center;
+    }
+    .hide {
+      display: none;
+      color: red;
+    }
+    
+    #action{
+      display: block;
+      width: 100vw;
+      text-align: center;
+      color: red;
+    }
+    #action small{
+      color: red;
+    }
+    
+    #outputDisplay{
+      text-align: center;
+      display: block;
+
+    }
+
+    #controllerSection{
+      margin: 5em 0;
+    }
+
+  </style>
+</head>
+<body>
+
+  <h1 id="homeAutomation">Home Automation</h1>
+  <section id="controllerSection">
+    <div class="bodyContainer">
+      <form class="button-container">
+        <button onclick="buttonClicked('fan')" type="button" class="button offState" id="fan">Hall Lights</button>
+        <button onclick="buttonClicked('hallLight')" type="button" class="button offState" id="hallLight">Guest House</button>
+        <button onclick="buttonClicked('roomLight')" type="button" class="button offState" id="roomLight">Kitchen</button>
+      </form>
+    </div>
+    <p class="micContainer">
+      <button type="button" onclick="runSpeechRecognition()">
+        <img src="../static/mic.png" alt="Microphone" class="micImg">
+      </button> 
+      <span id="action"></span>
+    </p>
+    <div id="output" class="hide"></div>
+    <p id="outputDisplay">this is </p>
+  </section>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+  <script>
+    function buttonClicked(buttonName) {
+      const button = document.getElementById(buttonName);
+      let newState;
+      if (button.classList.contains('offState')) {
+        button.classList.remove('offState');
+        button.classList.add('onState');
+        newState = "on";
+      } else {
+        button.classList.remove('onState');
+        button.classList.add('offState');
+        newState = "off";
+      }
+      $.ajax({
+        url: "/button_click",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ button: buttonName, state: newState }),
+        success: function(response) {
+          console.log(response.message);
+        },
+        error: function() {
+          console.error("An error occurred.");
+        }
+      });
+    }
+
+    function todisplay(value) {
+      let val = document.getElementById("outputDisplay");
+      val.innerHTML = value;
+    }
+    
+
+    function checkWord(words) {
+      if(words.includes("all")){
+        buttonClicked("fan");
+        buttonClicked("roomLight");
+        buttonClicked("hallLight");
+        todisplay("All Light Toggled");
+      }
+
+      if (words.includes("hall")) {
+        todisplay("Hall light toggled");
+        buttonClicked("fan");
+      } else if (words.includes("kitchen")) {
+        todisplay("Kitchen light toggled");
+        buttonClicked("roomLight");
+      } else if (words.includes("guest")) {
+        todisplay("Guest house light toggled");
+        buttonClicked("hallLight");
+      }
+    }
+
+    function sentenceChecker(inputSentence) {
+      const words = inputSentence.split(" ");
+      checkWord(words);
+    }
+
+    function runSpeechRecognition() {
+      var output = document.getElementById("output");
+      var action = document.getElementById("action");
+      var SpeechRecognition = SpeechRecognition || webkitSpeechRecognition;
+      var recognition = new SpeechRecognition();
+      recognition.lang = "en-US";
+
+      recognition.onstart = function() {
+        action.innerHTML = "<small>Listening, please speak...</small>";
+      };
+      recognition.onspeechend = function() {
+        action.innerHTML = "<small>Stopped listening...</small>";
+        recognition.stop();
+      };
+      recognition.onresult = function(event) {
+        var transcript = event.results[0][0].transcript;
+        // output.innerHTML = transcript;
+        output.classList.remove("hide");
+        sentenceChecker(transcript);
+      };
+
+      recognition.onerror = function(event) {
+        action.innerHTML = "<small>Error occurred: " + event.error + "</small>";
+      };
+      recognition.start();
+    }
+  </script>
+</body>
+</html>
